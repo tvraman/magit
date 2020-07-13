@@ -17,3 +17,5 @@
 /config.mk
 /lisp/magit-autoloads.el
 /lisp/magit-version.el
+/Documentation/RelNotes/*.html
+/magit.wiki/
