@@ -1,12 +1,14 @@
 ;;; magit-submodule.el --- submodule support for Magit  -*- lexical-binding: t -*-
 
-;; Copyright (C) 2011-2020  The Magit Project Contributors
+;; Copyright (C) 2011-2021  The Magit Project Contributors
 ;;
 ;; You should have received a copy of the AUTHORS.md file which
 ;; lists all contributors.  If not, see http://magit.vc/authors.
 
 ;; Author: Jonas Bernoulli <jonas@bernoul.li>
 ;; Maintainer: Jonas Bernoulli <jonas@bernoul.li>
+
+;; SPDX-License-Identifier: GPL-3.0-or-later
 
 ;; Magit is free software; you can redistribute it and/or modify it
 ;; under the terms of the GNU General Public License as published by
@@ -23,12 +25,10 @@
 
 ;;; Code:
 
-(eval-when-compile
-  (require 'subr-x))
-
 (require 'magit)
 
 (defvar x-stretch-cursor)
+
 ;;; Options
 
 (defcustom magit-module-sections-hook
@@ -83,7 +83,13 @@ of the column.  FORMAT is a function that is called with one
 argument, the repository identification (usually its basename),
 and with `default-directory' bound to the toplevel of its working
 tree.  It has to return a string to be inserted or nil.  PROPS is
-an alist that supports the keys `:right-align' and `:pad-right'."
+an alist that supports the keys `:right-align' and `:pad-right'.
+
+You may wish to display a range of numeric columns using just one
+character per column and without any padding between columns, in
+which case you should use an appropriat HEADER, set WIDTH to 1,
+and set `:pad-right' to 0.  \"+\" is substituted for numbers higher
+than 9."
   :package-version '(magit . "2.8.0")
   :group 'magit-repolist-mode
   :type `(repeat (list :tag "Column"
@@ -584,13 +590,15 @@ These sections can be expanded to show the respective commits."
 (defun magit-list-submodules ()
   "Display a list of the current repository's submodules."
   (interactive)
+  (message "Listing submodules...")
   (magit-display-buffer
    (or (magit-get-mode-buffer 'magit-submodule-list-mode)
        (magit-with-toplevel
          (magit-generate-new-buffer 'magit-submodule-list-mode))))
   (magit-submodule-list-mode)
   (magit-submodule-list-refresh)
-  (tabulated-list-print))
+  (tabulated-list-print)
+  (message "Listing submodules...done"))
 
 (defvar magit-submodule-list-mode-map
   (let ((map (make-sparse-keymap)))
@@ -624,13 +632,18 @@ These sections can be expanded to show the respective commits."
                    (and (file-exists-p ".git")
                         (list module
                               (vconcat
-                               (--map (or (funcall (nth 2 it) module) "")
-                                      magit-submodule-list-columns))))))
+                               (mapcar (pcase-lambda (`(,title ,width ,fn ,props))
+                                         (or (funcall fn `((:path  ,module)
+                                                           (:title ,title)
+                                                           (:width ,width)
+                                                           ,@props))
+                                             ""))
+                                       magit-submodule-list-columns))))))
                (magit-list-module-paths))))
 
-(defun magit-modulelist-column-path (path)
+(defun magit-modulelist-column-path (spec)
   "Insert the relative path of the submodule."
-  path)
+  (cadr (assq :path spec)))
 
 ;;; Utilities
 

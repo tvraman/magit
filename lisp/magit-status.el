@@ -1,12 +1,14 @@
 ;;; magit-status.el --- the grand overview  -*- lexical-binding: t -*-
 
-;; Copyright (C) 2010-2020  The Magit Project Contributors
+;; Copyright (C) 2010-2021  The Magit Project Contributors
 ;;
 ;; You should have received a copy of the AUTHORS.md file which
 ;; lists all contributors.  If not, see http://magit.vc/authors.
 
 ;; Author: Jonas Bernoulli <jonas@bernoul.li>
 ;; Maintainer: Jonas Bernoulli <jonas@bernoul.li>
+
+;; SPDX-License-Identifier: GPL-3.0-or-later
 
 ;; Magit is free software; you can redistribute it and/or modify it
 ;; under the terms of the GNU General Public License as published by
@@ -26,9 +28,6 @@
 ;; This library implements the status buffer.
 
 ;;; Code:
-
-(eval-when-compile
-  (require 'subr-x))
 
 (require 'magit)
 
@@ -269,8 +268,9 @@ prefix arguments:
   (interactive
    (let ((magit--refresh-cache (list (cons 0 0))))
      (list (and (or current-prefix-arg (not (magit-toplevel)))
-                (magit-read-repository
-                 (>= (prefix-numeric-value current-prefix-arg) 16)))
+                (progn (magit--assert-usable-git)
+                       (magit-read-repository
+                        (>= (prefix-numeric-value current-prefix-arg) 16))))
            magit--refresh-cache)))
   (let ((magit--refresh-cache (or cache (list (cons 0 0)))))
     (if directory
@@ -317,7 +317,7 @@ also contains other useful hints.")
       (if-let ((version (let ((default-directory directory))
                           (magit-git-version))))
           (if (version<= magit--minimal-git version)
-              (push version magit--remotes-using-recent-git)
+              (push remote magit--remotes-using-recent-git)
             (display-warning 'magit (format "\
 Magit requires Git >= %s, but on %s the version is %s.
 

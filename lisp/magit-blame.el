@@ -1,12 +1,14 @@
 ;;; magit-blame.el --- blame support for Magit  -*- lexical-binding: t -*-
 
-;; Copyright (C) 2012-2020  The Magit Project Contributors
+;; Copyright (C) 2012-2021  The Magit Project Contributors
 ;;
 ;; You should have received a copy of the AUTHORS.md file which
 ;; lists all contributors.  If not, see http://magit.vc/authors.
 
 ;; Author: Jonas Bernoulli <jonas@bernoul.li>
 ;; Maintainer: Jonas Bernoulli <jonas@bernoul.li>
+
+;; SPDX-License-Identifier: GPL-3.0-or-later
 
 ;; Magit is free software; you can redistribute it and/or modify it
 ;; under the terms of the GNU General Public License as published by
@@ -27,9 +29,6 @@
 ;; the revision which last modified the line.
 
 ;;; Code:
-
-(eval-when-compile
-  (require 'subr-x))
 
 (require 'magit)
 
@@ -475,7 +474,9 @@ modes is toggled, then this mode also gets toggled automatically.
 
 (defun magit-blame--parse-chunk (type)
   (let (chunk revinfo)
-    (looking-at "^\\(.\\{40\\}\\) \\([0-9]+\\) \\([0-9]+\\) \\([0-9]+\\)")
+    (unless (looking-at "^\\(.\\{40\\}\\) \\([0-9]+\\) \\([0-9]+\\) \\([0-9]+\\)")
+      (error "Blaming failed due to unexpected output: %s"
+             (buffer-substring-no-properties (point) (line-end-position))))
     (with-slots (orig-rev orig-file prev-rev prev-file)
         (setq chunk (magit-blame-chunk
                      :orig-rev                     (match-string 1)
@@ -487,10 +488,10 @@ modes is toggled, then this mode also gets toggled automatically.
         (while (not done)
           (cond ((looking-at "^filename \\(.+\\)")
                  (setq done t)
-                 (setf orig-file (match-string 1)))
+                 (setf orig-file (magit-decode-git-path (match-string 1))))
                 ((looking-at "^previous \\(.\\{40\\}\\) \\(.+\\)")
                  (setf prev-rev  (match-string 1))
-                 (setf prev-file (match-string 2)))
+                 (setf prev-file (magit-decode-git-path (match-string 2))))
                 ((looking-at "^\\([^ ]+\\) \\(.+\\)")
                  (push (cons (match-string 1)
                              (match-string 2)) revinfo)))
@@ -674,9 +675,10 @@ modes is toggled, then this mode also gets toggled automatically.
   (propertize
    (concat (propertize "\s" 'display '(space :height (2)))
            (propertize "\n" 'line-height t))
-   'font-lock-face (list :background
-                         (face-attribute 'magit-blame-heading
-                                         :background nil t))))
+   'font-lock-face `(:background
+                     ,(face-attribute 'magit-blame-heading
+                                      :background nil t)
+                     ,@(and (>= emacs-major-version 27) '(:extend t)))))
 
 (defun magit-blame--format-time-string (time tz)
   (let* ((time-format (or (magit-blame--style-get 'time-format)
@@ -699,9 +701,9 @@ modes is toggled, then this mode also gets toggled automatically.
   (when (magit-blame--style-get 'show-message)
     (let ((message-log-max 0))
       (if-let ((msg (cdr (assoc "summary"
-                               (gethash (oref (magit-current-blame-chunk)
-                                              orig-rev)
-                                        magit-blame-cache)))))
+                                (gethash (oref (magit-current-blame-chunk)
+                                               orig-rev)
+                                         magit-blame-cache)))))
           (progn (set-text-properties 0 (length msg) nil msg)
                  (message msg))
         (message "Commit data not available yet.  Still blaming.")))))
@@ -903,7 +905,7 @@ instead of the hash, like `kill-ring-save' would."
    ("q" "Quit blaming" magit-blame-quit)]
   ["Refresh"
    :if-non-nil magit-blame-mode
-   ("c" "Cycle style" magit-blame-cycle-style)])
+   ("c" "Cycle style" magit-blame-cycle-style :transient t)])
 
 (defun magit-blame-arguments ()
   (transient-args 'magit-blame))

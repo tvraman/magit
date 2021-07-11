@@ -1,12 +1,14 @@
 ;;; magit-tag.el --- tag functionality  -*- lexical-binding: t -*-
 
-;; Copyright (C) 2010-2020  The Magit Project Contributors
+;; Copyright (C) 2010-2021  The Magit Project Contributors
 ;;
 ;; You should have received a copy of the AUTHORS.md file which
 ;; lists all contributors.  If not, see http://magit.vc/authors.
 
 ;; Author: Jonas Bernoulli <jonas@bernoul.li>
 ;; Maintainer: Jonas Bernoulli <jonas@bernoul.li>
+
+;; SPDX-License-Identifier: GPL-3.0-or-later
 
 ;; Magit is free software; you can redistribute it and/or modify it
 ;; under the terms of the GNU General Public License as published by
@@ -28,6 +30,9 @@
 ;;; Code:
 
 (require 'magit)
+
+;; For `magit-tag-delete'.
+(defvar helm-comp-read-use-marked)
 
 ;;;###autoload (autoload 'magit-tag "magit" nil t)
 (transient-define-prefix magit-tag ()
@@ -53,7 +58,7 @@
   :class 'transient-option
   :shortarg "-u"
   :argument "--local-user="
-  :reader 'magit-read-gpg-secret-key
+  :reader 'magit-read-gpg-signing-key
   :history-key 'magit:--gpg-sign)
 
 ;;;###autoload
@@ -78,7 +83,8 @@ defaulting to the tag at point.
 \n(git tag -d TAGS)"
   (interactive (list (--if-let (magit-region-values 'tag)
                          (magit-confirm t nil "Delete %i tags" nil it)
-                       (magit-read-tag "Delete tag" t))))
+                       (let ((helm-comp-read-use-marked t))
+                         (magit-read-tag "Delete tag" t)))))
   (magit-run-git "tag" "-d" tags))
 
 ;;;###autoload

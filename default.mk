@@ -54,6 +54,7 @@ ELS += magit-section.el
 ifeq "$(BUILD_MAGIT_LIBGIT)" "true"
 ELS += magit-libgit.el
 endif
+ELS += magit-git.el
 ELS += magit-mode.el
 ELS += magit-margin.el
 ELS += magit-process.el
@@ -101,28 +102,30 @@ ELGS = magit-autoloads.el magit-version.el
 
 ## Versions ##########################################################
 
-VERSION ?= $(shell test -e $(TOP).git && git describe --tags --abbrev=0 | cut -c2-)
+VERSION ?= $(shell \
+  test -e $(TOP).git && \
+  git describe --tags --abbrev=0 --always | cut -c2-)
 
-ASYNC_VERSION       = 1.9.4
-DASH_VERSION        = 2.17.0
-GIT_COMMIT_VERSION  = 3.0.0
-LIBGIT_VERSION      = 0
-MAGIT_SECTION_VERSION = 3.0.0
-TRANSIENT_VERSION   = 0
-WITH_EDITOR_VERSION = 2.9.2
+DASH_VERSION          = 2.18.1
+GIT_COMMIT_VERSION    = 3.1.0
+LIBGIT_VERSION        = 0
+MAGIT_LIBGIT_VERSION  = 0
+MAGIT_SECTION_VERSION = 3.1.0
+TRANSIENT_VERSION     = 0.3.6
+WITH_EDITOR_VERSION   = 3.0.4
 
-ASYNC_MELPA_SNAPSHOT       = 20200113
-DASH_MELPA_SNAPSHOT        = 20200524
-GIT_COMMIT_MELPA_SNAPSHOT  = 20200516
-LIBGIT_MELPA_SNAPSHOT      = 0
-MAGIT_SECTION_MELPA_SNAPSHOT = 20200605
-TRANSIENT_MELPA_SNAPSHOT   = 20200601
-WITH_EDITOR_MELPA_SNAPSHOT = 20200522
+DASH_MELPA_SNAPSHOT          = 20210330
+GIT_COMMIT_MELPA_SNAPSHOT    = 20210701
+LIBGIT_MELPA_SNAPSHOT        = 0
+MAGIT_LIBGIT_MELPA_SNAPSHOT  = 0
+MAGIT_SECTION_MELPA_SNAPSHOT = 20210701
+TRANSIENT_MELPA_SNAPSHOT     = 20210701
+WITH_EDITOR_MELPA_SNAPSHOT   = 20210524
 
 EMACS_VERSION = 25.1
 
 LIBGIT_EMACS_VERSION = 26.1
-LIBGIT_MAGIT_VERSION = 0
+LIBGIT_MAGIT_VERSION = $(VERSION)
 
 EMACSOLD := $(shell $(BATCH) --eval \
   "(and (version< emacs-version \"$(EMACS_VERSION)\") (princ \"true\"))")
@@ -134,7 +137,15 @@ endif
 
 ifndef LOAD_PATH
 
-ELPA_DIR ?= $(HOME)/.emacs.d/elpa
+USER_EMACS_DIR = $(HOME)/.emacs.d
+ifeq "$(wildcard $(USER_EMACS_DIR))" ""
+  XDG_CONFIG_DIR = $(or $(XDG_CONFIG_HOME),$(HOME)/.config)
+  ifneq "$(wildcard $(XDG_CONFIG_DIR)/emacs)" ""
+    USER_EMACS_DIR = $(XDG_CONFIG_DIR)/emacs
+  endif
+endif
+
+ELPA_DIR ?= $(USER_EMACS_DIR)/elpa
 
 DASH_DIR ?= $(shell \
   find -L $(ELPA_DIR) -maxdepth 1 -regex '.*/dash-[.0-9]*' 2> /dev/null | \
@@ -164,6 +175,10 @@ ifeq "$(WITH_EDITOR_DIR)" ""
   WITH_EDITOR_DIR = $(TOP)../with-editor
 endif
 
+MAGIT_SECTION_DIR ?= $(shell \
+  find -L $(ELPA_DIR) -maxdepth 1 -regex '.*/magit-section-[.0-9]*' 2> /dev/null | \
+  sort | tail -n 1)
+
 SYSTYPE := $(shell $(EMACSBIN) -Q --batch --eval "(princ system-type)")
 ifeq ($(SYSTYPE), windows-nt)
   CYGPATH := $(shell cygpath --version 2>/dev/null)
@@ -172,7 +187,7 @@ endif
 LOAD_PATH = -L $(TOP)lisp
 
 # When making changes here, then don't forget to adjust "Makefile",
-# ".travis.yml", ".github/ISSUE_TEMPLATE/bug_report.md",
+# ".github/workflows/test.yml", ".github/ISSUE_TEMPLATE/bug_report.md",
 # `magit-emacs-Q-command' and the "Installing from the Git Repository"
 # info node accordingly.  Also don't forget to "rgrep \b<pkg>\b".
 
@@ -181,11 +196,17 @@ ifdef CYGPATH
   LOAD_PATH += -L $(shell cygpath --mixed $(LIBGIT_DIR))
   LOAD_PATH += -L $(shell cygpath --mixed $(TRANSIENT_DIR))
   LOAD_PATH += -L $(shell cygpath --mixed $(WITH_EDITOR_DIR))
+  ifneq "$(MAGIT_SECTION_DIR)" ""
+    LOAD_PATH += -L $(shell cygpath --mixed $(MAGIT_SECTION_DIR))
+  endif
 else
   LOAD_PATH += -L $(DASH_DIR)
   LOAD_PATH += -L $(LIBGIT_DIR)
   LOAD_PATH += -L $(TRANSIENT_DIR)
   LOAD_PATH += -L $(WITH_EDITOR_DIR)
+  ifneq "$(MAGIT_SECTION_DIR)" ""
+    LOAD_PATH += -L $(MAGIT_SECTION_DIR)
+  endif
 endif
 
 endif # ifndef LOAD_PATH
@@ -193,7 +214,7 @@ endif # ifndef LOAD_PATH
 ifndef ORG_LOAD_PATH
 ORG_LOAD_PATH  = $(LOAD_PATH)
 ORG_LOAD_PATH += -L ../../org/lisp
-ORG_LOAD_PATH += -L ../../org/contrib/lisp
+ORG_LOAD_PATH += -L ../../org-contrib/lisp
 ORG_LOAD_PATH += -L ../../ox-texinfo+
 endif
 

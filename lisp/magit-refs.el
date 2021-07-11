@@ -1,12 +1,14 @@
 ;;; magit-refs.el --- listing references  -*- lexical-binding: t -*-
 
-;; Copyright (C) 2010-2020  The Magit Project Contributors
+;; Copyright (C) 2010-2021  The Magit Project Contributors
 ;;
 ;; You should have received a copy of the AUTHORS.md file which
 ;; lists all contributors.  If not, see http://magit.vc/authors.
 
 ;; Author: Jonas Bernoulli <jonas@bernoul.li>
 ;; Maintainer: Jonas Bernoulli <jonas@bernoul.li>
+
+;; SPDX-License-Identifier: GPL-3.0-or-later
 
 ;; Magit is free software; you can redistribute it and/or modify it
 ;; under the terms of the GNU General Public License as published by
@@ -26,9 +28,6 @@
 ;; This library implements support for listing references in a buffer.
 
 ;;; Code:
-
-(eval-when-compile
-  (require 'subr-x))
 
 (require 'magit)
 
@@ -334,12 +333,10 @@ Type \\[magit-reset] to reset `HEAD' to the commit at point.
            (magit-show-refs-arguments magit-prefix-use-buffer-arguments))
   ["Arguments"
    (magit-for-each-ref:--contains)
-   ("=m" "Merged"               "--merged=" magit-transient-read-revision)
+   ("-M" "Merged"               "--merged=" magit-transient-read-revision)
    ("-m" "Merged to HEAD"       "--merged")
-   ("-M" "Merged to master"     "--merged=master")
-   ("=n" "Not merged"           "--no-merged=" magit-transient-read-revision)
+   ("-N" "Not merged"           "--no-merged=" magit-transient-read-revision)
    ("-n" "Not merged to HEAD"   "--no-merged")
-   ("-N" "Not merged to master" "--no-merged=master")
    (magit-for-each-ref:--sort)]
   ["Actions"
    ("y" "Show refs, comparing them with HEAD"           magit-show-refs-head)
@@ -530,9 +527,12 @@ line is inserted at all."
                 (magit-insert-heading
                   (magit-refs--format-focus-column tag 'tag)
                   (propertize tag 'font-lock-face 'magit-tag)
-                  (make-string (max 1 (- magit-refs-primary-column-width
-                                         (length tag)))
-                               ?\s)
+                  (make-string
+                   (max 1 (- (if (consp magit-refs-primary-column-width)
+                                 (car magit-refs-primary-column-width)
+                               magit-refs-primary-column-width)
+                             (length tag)))
+                   ?\s)
                   (and msg (magit-log-propertize-keywords nil msg)))
                 (when (and magit-refs-margin-for-tags (magit-buffer-margin-p))
                   (magit-refs--format-margin tag))
@@ -571,9 +571,12 @@ line is inserted at all."
                       (magit-refs--format-focus-column branch)
                       (magit-refs--propertize-branch
                        abbrev ref (and headp 'magit-branch-remote-head))
-                      (make-string (max 1 (- magit-refs-primary-column-width
-                                             (length abbrev)))
-                                   ?\s)
+                      (make-string
+                       (max 1 (- (if (consp magit-refs-primary-column-width)
+                                     (car magit-refs-primary-column-width)
+                                   magit-refs-primary-column-width)
+                                 (length abbrev)))
+                       ?\s)
                       (and msg (magit-log-propertize-keywords nil msg))))
                   (when (magit-buffer-margin-p)
                     (magit-refs--format-margin branch))
